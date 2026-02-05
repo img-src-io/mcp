@@ -44,7 +44,7 @@ src/
 
 | Tool | Description |
 |------|-------------|
-| `upload_image` | Upload image from URL or base64 |
+| `upload_image` | Upload image from local file or URL |
 | `list_images` | List images in folder with pagination |
 | `search_images` | Search by filename/path |
 | `get_image` | Get image metadata by ID |

@@ -12,17 +12,8 @@
  *   IMG_SRC_API_URL - Optional. API base URL (default: https://api.img-src.io)
  */
 
-import { Server } from "@modelcontextprotocol/sdk/server/index.js";
+import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
-  ListPromptsRequestSchema,
-  GetPromptRequestSchema,
-  type Tool,
-} from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
 // =============================================================================
@@ -373,200 +364,6 @@ const GetCdnUrlArgsSchema = z.object({
   format: z.enum(["webp", "avif", "jpeg", "png"]).optional(),
 });
 
-// =============================================================================
-// Tool Definitions
-// =============================================================================
-
-const tools: Tool[] = [
-  {
-    name: "upload_image",
-    description:
-      "Upload an image to img-src.io from URL or base64 data. Supports JPEG, PNG, WebP, GIF, AVIF, HEIC, and more. " +
-      "Images are automatically deduplicated by content hash. " +
-      "Returns the image metadata including CDN URLs for different formats.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        url: {
-          type: "string",
-          description: "URL of the image to upload. The image will be fetched and uploaded.",
-        },
-        data: {
-          type: "string",
-          description: "Base64-encoded image data. Use this for local file uploads.",
-        },
-        mimeType: {
-          type: "string",
-          description:
-            "MIME type of the image (e.g., 'image/png', 'image/jpeg'). Required when using data parameter.",
-        },
-        filepath: {
-          type: "string",
-          description:
-            "Optional path to store the image (e.g., 'photos/vacation/beach.jpg'). " +
-            "If not provided, the original filename from the URL will be used.",
-        },
-      },
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "list_images",
-    description:
-      "List images in your img-src.io account. " +
-      "Supports pagination and folder browsing. " +
-      "Returns images and subfolders in the specified path.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        folder: {
-          type: "string",
-          description:
-            "Folder path to list (e.g., 'photos/vacation'). " +
-            "Leave empty to list root folder.",
-        },
-        limit: {
-          type: "number",
-          description: "Maximum number of items to return (default: 50, max: 100).",
-        },
-        offset: {
-          type: "number",
-          description: "Number of items to skip for pagination (default: 0).",
-        },
-      },
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "search_images",
-    description:
-      "Search for images by filename or path. " +
-      "Performs a fuzzy search across all your images. " +
-      "Returns matching images with their metadata and CDN URLs.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        query: {
-          type: "string",
-          description: "Search query to match against filenames and paths.",
-        },
-        limit: {
-          type: "number",
-          description: "Maximum number of results to return (default: 20, max: 100).",
-        },
-        offset: {
-          type: "number",
-          description: "Number of results to skip for pagination (default: 0).",
-        },
-      },
-      required: ["query"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_image",
-    description:
-      "Get detailed metadata for a specific image by its ID. " +
-      "Returns full image information including dimensions, format, " +
-      "all associated paths, and CDN URLs.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        id: {
-          type: "string",
-          description: "The image ID (UUID format).",
-        },
-      },
-      required: ["id"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "delete_image",
-    description:
-      "Delete an image by its ID. " +
-      "This permanently removes the image and all its paths from your account. " +
-      "The image will no longer be accessible via CDN URLs.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        id: {
-          type: "string",
-          description: "The image ID (UUID format) to delete.",
-        },
-      },
-      required: ["id"],
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_usage",
-    description:
-      "Get current usage statistics for your img-src.io account. " +
-      "Shows uploads, storage, bandwidth, and API request usage " +
-      "against your plan limits.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {},
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_settings",
-    description:
-      "Get your img-src.io account settings. " +
-      "Returns username, plan, default image settings, " +
-      "and account statistics.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {},
-      additionalProperties: false,
-    },
-  },
-  {
-    name: "get_cdn_url",
-    description:
-      "Generate a CDN URL for an image with optional transformations. " +
-      "Supports resizing, format conversion, and quality adjustment.",
-    inputSchema: {
-      type: "object" as const,
-      properties: {
-        username: {
-          type: "string",
-          description: "The username who owns the image.",
-        },
-        filepath: {
-          type: "string",
-          description: "The image filepath (e.g., 'photos/beach.jpg').",
-        },
-        width: {
-          type: "number",
-          description: "Resize width in pixels.",
-        },
-        height: {
-          type: "number",
-          description: "Resize height in pixels.",
-        },
-        fit: {
-          type: "string",
-          enum: ["cover", "contain", "fill", "scale-down"],
-          description: "How to fit the image within the dimensions (default: contain).",
-        },
-        quality: {
-          type: "number",
-          description: "Image quality 1-100 (default: 80).",
-        },
-        format: {
-          type: "string",
-          enum: ["webp", "avif", "jpeg", "png"],
-          description: "Output format. WebP is recommended for best compression.",
-        },
-      },
-      required: ["username", "filepath"],
-      additionalProperties: false,
-    },
-  },
-];
 
 // =============================================================================
 // Tool Handlers
@@ -909,8 +706,21 @@ function handleGetCdnUrl(args: {
 // Server Setup
 // =============================================================================
 
+/**
+ * Helper to wrap tool handler result as CallToolResult
+ */
+function wrapToolResult(result: string): { content: { type: "text"; text: string }[]; isError?: boolean } {
+  const parsedResult = JSON.parse(result) as { error?: unknown };
+  const hasError = "error" in parsedResult;
+
+  return {
+    content: [{ type: "text", text: result }],
+    ...(hasError && { isError: true }),
+  };
+}
+
 async function main() {
-  const server = new Server(
+  const server = new McpServer(
     {
       name: "img-src-mcp",
       version: "1.0.0",
@@ -924,303 +734,214 @@ async function main() {
     }
   );
 
-  // Handle tool listing
-  server.setRequestHandler(ListToolsRequestSchema, () => {
-    return { tools };
-  });
+  // =============================================================================
+  // Tool Registrations
+  // =============================================================================
 
-  // Handle tool execution
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const { name, arguments: args } = request.params;
+  server.registerTool(
+    "upload_image",
+    {
+      description:
+        "Upload an image to img-src.io from URL or base64 data. Supports JPEG, PNG, WebP, GIF, AVIF, HEIC, and more. " +
+        "Images are automatically deduplicated by content hash. " +
+        "Returns the image metadata including CDN URLs for different formats.",
+      inputSchema: UploadImageArgsSchema,
+    },
+    async (args) => wrapToolResult(await handleUploadImage(args))
+  );
 
-    try {
-      let result: string;
+  server.registerTool(
+    "list_images",
+    {
+      description:
+        "List images in your img-src.io account. " +
+        "Supports pagination and folder browsing. " +
+        "Returns images and subfolders in the specified path.",
+      inputSchema: ListImagesArgsSchema,
+    },
+    async (args) => wrapToolResult(await handleListImages(args))
+  );
 
-      switch (name) {
-        case "upload_image": {
-          const parsed = UploadImageArgsSchema.safeParse(args);
-          if (!parsed.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify({
-                    error: { code: "INVALID_ARGS", message: parsed.error.message },
-                  }),
-                },
-              ],
-              isError: true,
-            };
-          }
-          result = await handleUploadImage(parsed.data);
-          break;
+  server.registerTool(
+    "search_images",
+    {
+      description:
+        "Search for images by filename or path. " +
+        "Performs a fuzzy search across all your images. " +
+        "Returns matching images with their metadata and CDN URLs.",
+      inputSchema: SearchImagesArgsSchema,
+    },
+    async (args) => wrapToolResult(await handleSearchImages(args))
+  );
+
+  server.registerTool(
+    "get_image",
+    {
+      description:
+        "Get detailed metadata for a specific image by its ID. " +
+        "Returns full image information including dimensions, format, " +
+        "all associated paths, and CDN URLs.",
+      inputSchema: GetImageArgsSchema,
+    },
+    async (args) => wrapToolResult(await handleGetImage(args))
+  );
+
+  server.registerTool(
+    "delete_image",
+    {
+      description:
+        "Delete an image by its ID. " +
+        "This permanently removes the image and all its paths from your account. " +
+        "The image will no longer be accessible via CDN URLs.",
+      inputSchema: DeleteImageArgsSchema,
+    },
+    async (args) => wrapToolResult(await handleDeleteImage(args))
+  );
+
+  server.registerTool(
+    "get_usage",
+    {
+      description:
+        "Get current usage statistics for your img-src.io account. " +
+        "Shows uploads, storage, bandwidth, and API request usage " +
+        "against your plan limits.",
+    },
+    async () => wrapToolResult(await handleGetUsage())
+  );
+
+  server.registerTool(
+    "get_settings",
+    {
+      description:
+        "Get your img-src.io account settings. " +
+        "Returns username, plan, default image settings, " +
+        "and account statistics.",
+    },
+    async () => wrapToolResult(await handleGetSettings())
+  );
+
+  server.registerTool(
+    "get_cdn_url",
+    {
+      description:
+        "Generate a CDN URL for an image with optional transformations. " +
+        "Supports resizing, format conversion, and quality adjustment.",
+      inputSchema: GetCdnUrlArgsSchema,
+    },
+    (args) => wrapToolResult(handleGetCdnUrl(args))
+  );
+
+  // =============================================================================
+  // Resource Registration
+  // =============================================================================
+
+  server.registerResource(
+    "images",
+    new ResourceTemplate("imgsrc://images/{imageId}", {
+      list: async () => {
+        const result = await apiRequest<ImageListResponse>("GET", "/api/v1/images?limit=100");
+        if (result.error) {
+          return { resources: [] };
         }
 
-        case "list_images": {
-          const parsed = ListImagesArgsSchema.safeParse(args);
-          if (!parsed.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify({
-                    error: { code: "INVALID_ARGS", message: parsed.error.message },
-                  }),
-                },
-              ],
-              isError: true,
-            };
-          }
-          result = await handleListImages(parsed.data);
-          break;
-        }
+        return {
+          resources: result.data!.images.map((img) => ({
+            uri: `imgsrc://images/${img.id}`,
+            name: img.original_filename,
+            mimeType: "image/*",
+            description: `Image: ${img.paths.join(", ")}`,
+          })),
+        };
+      },
+    }),
+    {
+      description: "Image resources from your img-src.io account",
+      mimeType: "application/json",
+    },
+    async (uri, variables) => {
+      const imageId = variables.imageId as string;
+      const result = await apiRequest<MetadataResponse>("GET", `/api/v1/images/${imageId}`);
 
-        case "search_images": {
-          const parsed = SearchImagesArgsSchema.safeParse(args);
-          if (!parsed.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify({
-                    error: { code: "INVALID_ARGS", message: parsed.error.message },
-                  }),
-                },
-              ],
-              isError: true,
-            };
-          }
-          result = await handleSearchImages(parsed.data);
-          break;
-        }
-
-        case "get_image": {
-          const parsed = GetImageArgsSchema.safeParse(args);
-          if (!parsed.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify({
-                    error: { code: "INVALID_ARGS", message: parsed.error.message },
-                  }),
-                },
-              ],
-              isError: true,
-            };
-          }
-          result = await handleGetImage(parsed.data);
-          break;
-        }
-
-        case "delete_image": {
-          const parsed = DeleteImageArgsSchema.safeParse(args);
-          if (!parsed.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify({
-                    error: { code: "INVALID_ARGS", message: parsed.error.message },
-                  }),
-                },
-              ],
-              isError: true,
-            };
-          }
-          result = await handleDeleteImage(parsed.data);
-          break;
-        }
-
-        case "get_usage":
-          result = await handleGetUsage();
-          break;
-
-        case "get_settings":
-          result = await handleGetSettings();
-          break;
-
-        case "get_cdn_url": {
-          const parsed = GetCdnUrlArgsSchema.safeParse(args);
-          if (!parsed.success) {
-            return {
-              content: [
-                {
-                  type: "text" as const,
-                  text: JSON.stringify({
-                    error: { code: "INVALID_ARGS", message: parsed.error.message },
-                  }),
-                },
-              ],
-              isError: true,
-            };
-          }
-          result = handleGetCdnUrl(parsed.data);
-          break;
-        }
-
-        default:
-          return {
-            content: [
-              {
-                type: "text" as const,
-                text: JSON.stringify({
-                  error: { code: "UNKNOWN_TOOL", message: `Unknown tool: ${name}` },
-                }),
-              },
-            ],
-            isError: true,
-          };
+      if (result.error) {
+        return { contents: [] };
       }
 
-      // Check if result contains an error and set isError flag accordingly
-      const parsedResult = JSON.parse(result) as { error?: unknown };
-      const hasError = "error" in parsedResult;
-
       return {
-        content: [
+        contents: [
           {
-            type: "text" as const,
-            text: result,
+            uri: uri.href,
+            mimeType: "application/json",
+            text: JSON.stringify(result.data, null, 2),
           },
         ],
-        ...(hasError && { isError: true }),
-      };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error occurred";
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({ error: { code: "INTERNAL_ERROR", message } }),
-          },
-        ],
-        isError: true,
       };
     }
-  });
+  );
 
   // =============================================================================
-  // Resources Handlers
+  // Prompt Registrations
   // =============================================================================
 
-  // List available resources (images)
-  server.setRequestHandler(ListResourcesRequestSchema, async () => {
-    const result = await apiRequest<ImageListResponse>("GET", "/api/v1/images?limit=100");
-    if (result.error) {
-      return { resources: [] };
-    }
-
-    return {
-      resources: result.data!.images.map((img) => ({
-        uri: `imgsrc://images/${img.id}`,
-        name: img.original_filename,
-        mimeType: "image/*",
-        description: `Image: ${img.paths.join(", ")}`,
-      })),
-    };
-  });
-
-  // Read a specific resource
-  server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-    const uri = request.params.uri;
-    const match = /^imgsrc:\/\/images\/(.+)$/.exec(uri);
-    if (!match) {
-      return { contents: [] };
-    }
-
-    const imageId = match[1];
-    const result = await apiRequest<MetadataResponse>("GET", `/api/v1/images/${imageId}`);
-
-    if (result.error) {
-      return { contents: [] };
-    }
-
-    return {
-      contents: [
+  server.registerPrompt(
+    "upload-and-share",
+    {
+      description: "Upload an image and get shareable CDN URLs",
+      argsSchema: {
+        imageUrl: z.string().describe("URL of image to upload"),
+        width: z.string().optional().describe("Resize width (optional)"),
+      },
+    },
+    (args) => ({
+      messages: [
         {
-          uri,
-          mimeType: "application/json",
-          text: JSON.stringify(result.data, null, 2),
+          role: "user" as const,
+          content: {
+            type: "text" as const,
+            text: `Upload this image: ${args.imageUrl}${args.width ? ` and resize to ${args.width}px width` : ""}. Then give me the CDN URL.`,
+          },
         },
       ],
-    };
-  });
+    })
+  );
 
-  // =============================================================================
-  // Prompts Handlers
-  // =============================================================================
-
-  const prompts = [
+  server.registerPrompt(
+    "check-usage",
     {
-      name: "upload-and-share",
-      description: "Upload an image and get shareable CDN URLs",
-      arguments: [
-        { name: "imageUrl", description: "URL of image to upload", required: true },
-        { name: "width", description: "Resize width (optional)", required: false },
-      ],
-    },
-    {
-      name: "check-usage",
       description: "Check account usage and storage status",
     },
+    () => ({
+      messages: [
+        {
+          role: "user" as const,
+          content: {
+            type: "text" as const,
+            text: "Check my img-src.io usage stats and let me know if I'm close to any limits.",
+          },
+        },
+      ],
+    })
+  );
+
+  server.registerPrompt(
+    "find-images",
     {
-      name: "find-images",
       description: "Search for images by keyword",
-      arguments: [{ name: "query", description: "Search keyword", required: true }],
+      argsSchema: {
+        query: z.string().describe("Search keyword"),
+      },
     },
-  ];
-
-  // List available prompts
-  server.setRequestHandler(ListPromptsRequestSchema, () => {
-    return { prompts };
-  });
-
-  // Get a specific prompt
-  server.setRequestHandler(GetPromptRequestSchema, (request) => {
-    const { name, arguments: args } = request.params;
-
-    switch (name) {
-      case "upload-and-share":
-        return {
-          messages: [
-            {
-              role: "user" as const,
-              content: {
-                type: "text" as const,
-                text: `Upload this image: ${args?.imageUrl ?? "[image URL]"}${args?.width ? ` and resize to ${args.width}px width` : ""}. Then give me the CDN URL.`,
-              },
-            },
-          ],
-        };
-      case "check-usage":
-        return {
-          messages: [
-            {
-              role: "user" as const,
-              content: {
-                type: "text" as const,
-                text: "Check my img-src.io usage stats and let me know if I'm close to any limits.",
-              },
-            },
-          ],
-        };
-      case "find-images":
-        return {
-          messages: [
-            {
-              role: "user" as const,
-              content: {
-                type: "text" as const,
-                text: `Find all my images matching "${args?.query ?? "[keyword]"}" and show me the results.`,
-              },
-            },
-          ],
-        };
-      default:
-        throw new Error(`Unknown prompt: ${name}`);
-    }
-  });
+    (args) => ({
+      messages: [
+        {
+          role: "user" as const,
+          content: {
+            type: "text" as const,
+            text: `Find all my images matching "${args.query}" and show me the results.`,
+          },
+        },
+      ],
+    })
+  );
 
   // Start the server
   const transport = new StdioServerTransport();

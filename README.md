@@ -54,11 +54,10 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 
 ### upload_image
 
-Upload an image from a URL or base64 data to your img-src.io account.
+Upload an image from a local file or URL to your img-src.io account.
 
 ```
-Upload this image: https://example.com/photo.jpg
-Store it as photos/vacation/beach.jpg
+Upload ~/Photos/sunset.jpg to img-src as photos/vacation/sunset.jpg
 ```
 
 **Parameters:**
@@ -74,7 +73,7 @@ Note: Either `url` or `data` must be provided.
 List images in your account, optionally within a specific folder.
 
 ```
-List my images in the photos/vacation folder
+List my img-src images in the photos/vacation folder
 ```
 
 **Parameters:**
@@ -87,7 +86,7 @@ List my images in the photos/vacation folder
 Search for images by filename or path.
 
 ```
-Search for images containing "beach"
+Search for img-src images containing "beach"
 ```
 
 **Parameters:**
@@ -100,22 +99,22 @@ Search for images containing "beach"
 Get detailed metadata for a specific image.
 
 ```
-Get details for image abc123-def456
+Get details for my img-src image at photos/vacation/sunset.jpg
 ```
 
 **Parameters:**
-- `id` (required): Image ID (UUID)
+- `id` (required): Image ID (UUID) or filepath
 
 ### delete_image
 
 Permanently delete an image.
 
 ```
-Delete the image with ID abc123-def456
+Delete my img-src image at photos/old/unused.jpg
 ```
 
 **Parameters:**
-- `id` (required): Image ID to delete
+- `id` (required): Image ID (UUID) or filepath to delete
 
 ### get_usage
 
@@ -138,7 +137,7 @@ What are my img-src account settings?
 Generate a CDN URL with optional image transformations.
 
 ```
-Generate a CDN URL for john/photos/beach.jpg resized to 800x600
+Generate an img-src CDN URL for john/photos/beach.jpg resized to 800x600
 ```
 
 **Parameters:**
@@ -179,7 +178,7 @@ Search for images by keyword.
 
 ### Upload and share an image
 
-> User: Upload this image https://example.com/sunset.jpg and give me a resized URL
+> User: Upload ~/Photos/sunset.jpg to img-src and give me a resized URL
 
 > Claude: I'll upload that image and generate a CDN URL for you.
 >
