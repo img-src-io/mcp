@@ -457,7 +457,7 @@ const UploadImageArgsSchema = z
     target_path: z
       .string()
       .optional()
-      .describe("Optional: Custom path/filename for the uploaded image"),
+      .describe("Optional: Folder path to store the image (e.g., 'photos/2024'). Filename is determined from source."),
   })
   .refine((d) => d.file_path ?? d.url ?? d.data, {
     message: "One of file_path, url, or data is required",
@@ -467,33 +467,96 @@ const UploadImageArgsSchema = z
   });
 
 const ListImagesArgsSchema = z.object({
-  folder: z.string().optional(),
-  limit: z.number().int().min(1).max(100).optional(),
-  offset: z.number().int().min(0).optional(),
+  folder: z
+    .string()
+    .optional()
+    .describe("Folder path to filter images (e.g., 'blog/2024'). Omit to list root level."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe("Max images to return (1-100, default: 50)"),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("Number of images to skip for pagination (default: 0)"),
 });
 
 const SearchImagesArgsSchema = z.object({
-  query: z.string().min(1, "Search query is required"),
-  limit: z.number().int().min(1).max(100).optional(),
-  offset: z.number().int().min(0).optional(),
+  query: z
+    .string()
+    .min(1)
+    .max(100)
+    .describe("Search term to match against filenames and paths (1-100 chars)"),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe("Max results to return (1-100, default: 20)"),
+  offset: z
+    .number()
+    .int()
+    .min(0)
+    .optional()
+    .describe("Number of results to skip for pagination (default: 0)"),
 });
 
 const GetImageArgsSchema = z.object({
-  id: z.string().min(1, "Image ID is required"),
+  id: z
+    .string()
+    .length(16)
+    .describe("Image ID (16-character hash prefix, e.g., 'abcdef1234567890')"),
 });
 
 const DeleteImageArgsSchema = z.object({
-  id: z.string().min(1, "Image ID is required"),
+  id: z
+    .string()
+    .length(16)
+    .describe("Image ID to delete (16-character hash prefix). This permanently removes the image and all its paths."),
 });
 
 const GetCdnUrlArgsSchema = z.object({
-  username: z.string().min(1, "Username is required"),
-  filepath: z.string().min(1, "Filepath is required"),
-  width: z.number().int().positive().optional(),
-  height: z.number().int().positive().optional(),
-  fit: z.enum(["cover", "contain", "fill", "scale-down"]).optional(),
-  quality: z.number().int().min(1).max(100).optional(),
-  format: z.enum(["webp", "avif", "jpeg", "png"]).optional(),
+  username: z
+    .string()
+    .min(1)
+    .describe("img-src.io username (appears in CDN URL path)"),
+  filepath: z
+    .string()
+    .min(1)
+    .describe("Image path without extension (e.g., 'blog/photo' for blog/photo.webp)"),
+  width: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Resize width in pixels"),
+  height: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe("Resize height in pixels"),
+  fit: z
+    .enum(["cover", "contain", "fill", "scale-down"])
+    .optional()
+    .describe("Resize fit mode: cover (crop), contain (fit), fill (stretch), scale-down (shrink only)"),
+  quality: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe("Image quality 1-100 (default: 80)"),
+  format: z
+    .enum(["webp", "avif", "jpeg", "png"])
+    .optional()
+    .describe("Output format (default: webp)"),
 });
 
 
