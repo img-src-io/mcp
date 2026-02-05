@@ -9,6 +9,50 @@ vi.stubGlobal("fetch", mockFetch);
 // Helper Functions (exported from index.ts logic, reimplemented for testing)
 // =============================================================================
 
+function isAllowedUrl(urlString: string): { allowed: boolean; reason?: string } {
+  let parsed: URL;
+  try {
+    parsed = new URL(urlString);
+  } catch {
+    return { allowed: false, reason: "Invalid URL format" };
+  }
+
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { allowed: false, reason: `Protocol '${parsed.protocol}' is not allowed` };
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  const localhostPatterns = ["localhost", "127.0.0.1", "0.0.0.0", "::1", "[::1]"];
+  if (localhostPatterns.includes(hostname)) {
+    return { allowed: false, reason: "Localhost URLs are not allowed" };
+  }
+
+  const metadataEndpoints = ["169.254.169.254", "metadata.google.internal", "metadata.goog"];
+  if (metadataEndpoints.includes(hostname)) {
+    return { allowed: false, reason: "Cloud metadata endpoints are not allowed" };
+  }
+
+  const ipv4Match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number);
+    if (a === 10) {
+      return { allowed: false, reason: "Private network URLs are not allowed" };
+    }
+    if (a === 172 && b >= 16 && b <= 31) {
+      return { allowed: false, reason: "Private network URLs are not allowed" };
+    }
+    if (a === 192 && b === 168) {
+      return { allowed: false, reason: "Private network URLs are not allowed" };
+    }
+    if (a === 169 && b === 254) {
+      return { allowed: false, reason: "Link-local URLs are not allowed" };
+    }
+  }
+
+  return { allowed: true };
+}
+
 function sanitizePath(path: string): string {
   // Decode URL-encoded characters first to catch encoded path traversal
   let decoded = path;
@@ -42,6 +86,68 @@ describe("MCP Server", () => {
 
   afterEach(() => {
     vi.clearAllMocks();
+  });
+
+  describe("isAllowedUrl (SSRF Protection)", () => {
+    it("should allow valid external URLs", () => {
+      expect(isAllowedUrl("https://example.com/image.jpg").allowed).toBe(true);
+      expect(isAllowedUrl("http://cdn.example.org/photo.png").allowed).toBe(true);
+      expect(isAllowedUrl("https://images.unsplash.com/photo-123").allowed).toBe(true);
+    });
+
+    it("should block localhost URLs", () => {
+      expect(isAllowedUrl("http://localhost/secret").allowed).toBe(false);
+      expect(isAllowedUrl("http://127.0.0.1/admin").allowed).toBe(false);
+      expect(isAllowedUrl("http://0.0.0.0:8080/api").allowed).toBe(false);
+      expect(isAllowedUrl("http://[::1]/internal").allowed).toBe(false);
+    });
+
+    it("should block cloud metadata endpoints", () => {
+      expect(isAllowedUrl("http://169.254.169.254/latest/meta-data/").allowed).toBe(false);
+      expect(isAllowedUrl("http://metadata.google.internal/computeMetadata/").allowed).toBe(false);
+      expect(isAllowedUrl("http://metadata.goog/v1/").allowed).toBe(false);
+    });
+
+    it("should block private network IPs (RFC 1918)", () => {
+      // 10.0.0.0/8
+      expect(isAllowedUrl("http://10.0.0.1/internal").allowed).toBe(false);
+      expect(isAllowedUrl("http://10.255.255.255/secret").allowed).toBe(false);
+
+      // 172.16.0.0/12
+      expect(isAllowedUrl("http://172.16.0.1/admin").allowed).toBe(false);
+      expect(isAllowedUrl("http://172.31.255.255/config").allowed).toBe(false);
+      expect(isAllowedUrl("http://172.15.0.1/image.jpg").allowed).toBe(true); // Not in range
+
+      // 192.168.0.0/16
+      expect(isAllowedUrl("http://192.168.1.1/router").allowed).toBe(false);
+      expect(isAllowedUrl("http://192.168.0.100/local").allowed).toBe(false);
+    });
+
+    it("should block link-local addresses", () => {
+      expect(isAllowedUrl("http://169.254.1.1/link-local").allowed).toBe(false);
+      expect(isAllowedUrl("http://169.254.100.200/apipa").allowed).toBe(false);
+    });
+
+    it("should block non-http protocols", () => {
+      expect(isAllowedUrl("file:///etc/passwd").allowed).toBe(false);
+      expect(isAllowedUrl("ftp://ftp.example.com/image.jpg").allowed).toBe(false);
+      expect(isAllowedUrl("gopher://evil.com/").allowed).toBe(false);
+    });
+
+    it("should reject invalid URLs", () => {
+      expect(isAllowedUrl("not-a-url").allowed).toBe(false);
+      expect(isAllowedUrl("").allowed).toBe(false);
+      expect(isAllowedUrl("://missing-protocol").allowed).toBe(false);
+    });
+
+    it("should provide meaningful error reasons", () => {
+      expect(isAllowedUrl("http://localhost/").reason).toBe("Localhost URLs are not allowed");
+      expect(isAllowedUrl("http://10.0.0.1/").reason).toBe("Private network URLs are not allowed");
+      expect(isAllowedUrl("http://169.254.169.254/").reason).toBe(
+        "Cloud metadata endpoints are not allowed"
+      );
+      expect(isAllowedUrl("file:///etc/passwd").reason).toContain("Protocol");
+    });
   });
 
   describe("sanitizePath", () => {

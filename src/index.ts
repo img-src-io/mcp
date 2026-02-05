@@ -30,6 +30,72 @@ const MAX_IMAGE_SIZE = 5 * 1024 * 1024; // 5MB
 // =============================================================================
 
 /**
+ * Check if a URL is safe to fetch (SSRF protection)
+ * Blocks internal networks, localhost, and cloud metadata endpoints
+ */
+function isAllowedUrl(urlString: string): { allowed: boolean; reason?: string } {
+  let parsed: URL;
+  try {
+    parsed = new URL(urlString);
+  } catch {
+    return { allowed: false, reason: "Invalid URL format" };
+  }
+
+  // Only allow http and https protocols
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    return { allowed: false, reason: `Protocol '${parsed.protocol}' is not allowed` };
+  }
+
+  const hostname = parsed.hostname.toLowerCase();
+
+  // Block localhost variants
+  const localhostPatterns = [
+    "localhost",
+    "127.0.0.1",
+    "0.0.0.0",
+    "::1",
+    "[::1]",
+  ];
+  if (localhostPatterns.includes(hostname)) {
+    return { allowed: false, reason: "Localhost URLs are not allowed" };
+  }
+
+  // Block cloud metadata endpoints
+  const metadataEndpoints = [
+    "169.254.169.254", // AWS, GCP, Azure metadata
+    "metadata.google.internal",
+    "metadata.goog",
+  ];
+  if (metadataEndpoints.includes(hostname)) {
+    return { allowed: false, reason: "Cloud metadata endpoints are not allowed" };
+  }
+
+  // Block private IP ranges (RFC 1918)
+  const ipv4Match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
+  if (ipv4Match) {
+    const [, a, b] = ipv4Match.map(Number);
+    // 10.0.0.0/8
+    if (a === 10) {
+      return { allowed: false, reason: "Private network URLs are not allowed" };
+    }
+    // 172.16.0.0/12
+    if (a === 172 && b >= 16 && b <= 31) {
+      return { allowed: false, reason: "Private network URLs are not allowed" };
+    }
+    // 192.168.0.0/16
+    if (a === 192 && b === 168) {
+      return { allowed: false, reason: "Private network URLs are not allowed" };
+    }
+    // 169.254.0.0/16 (link-local)
+    if (a === 169 && b === 254) {
+      return { allowed: false, reason: "Link-local URLs are not allowed" };
+    }
+  }
+
+  return { allowed: true };
+}
+
+/**
  * Sanitize filepath to prevent path traversal attacks
  */
 function sanitizePath(path: string): string {
@@ -404,6 +470,17 @@ async function handleUploadImage(args: {
       filename = `image.${ext}`;
     }
   } else if (args.url) {
+    // Validate URL before fetching (SSRF protection)
+    const urlCheck = isAllowedUrl(args.url);
+    if (!urlCheck.allowed) {
+      return JSON.stringify({
+        error: {
+          code: "FORBIDDEN_URL",
+          message: `URL not allowed: ${urlCheck.reason ?? "Unknown reason"}`,
+        },
+      });
+    }
+
     // Fetch the image from the URL with timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => {
