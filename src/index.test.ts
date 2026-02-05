@@ -62,17 +62,11 @@ function sanitizePath(path: string): string {
     // Keep original if decoding fails
   }
 
-  // Repeatedly remove ../ and ..\ until none remain
-  let result = decoded;
-  let previous: string;
-  do {
-    previous = result;
-    result = result
-      .replace(/\.\.\//g, "")
-      .replace(/\.\.\\/g, "");
-  } while (result !== previous);
-
-  return result.replace(/^\/+/, "");
+  // Split path into segments, filter out dangerous ones, rejoin
+  return decoded
+    .split(/[/\\]+/)
+    .filter((segment) => segment !== ".." && segment !== "." && segment !== "")
+    .join("/");
 }
 
 function formatBytes(bytes: number): string {
@@ -174,13 +168,16 @@ describe("MCP Server", () => {
       expect(sanitizePath("image.png")).toBe("image.png");
     });
 
-    it("should handle nested path traversal bypass attempts", () => {
-      // "..../" becomes "../" after single replace - must be handled iteratively
-      expect(sanitizePath("....//secret")).toBe("secret");
-      expect(sanitizePath("....\\\\secret")).toBe("secret");
-      expect(sanitizePath("foo/....//bar")).toBe("foo/bar");
-      // Multiple nested patterns
-      expect(sanitizePath("......///secret")).toBe("secret");
+    it("should handle path traversal with segment-based filtering", () => {
+      // Segment-based filtering removes ".." segments completely
+      expect(sanitizePath("..")).toBe("");
+      expect(sanitizePath("../..")).toBe("");
+      expect(sanitizePath("foo/../bar")).toBe("foo/bar");
+      expect(sanitizePath("foo/../../bar")).toBe("foo/bar");
+      // "...." is NOT ".." so it's preserved (valid directory name)
+      expect(sanitizePath("..../secret")).toBe("..../secret");
+      // Multiple slashes are normalized
+      expect(sanitizePath("foo//bar///baz")).toBe("foo/bar/baz");
     });
 
     it("should handle URL-encoded path traversal", () => {

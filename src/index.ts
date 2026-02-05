@@ -157,19 +157,12 @@ function sanitizePath(path: string): string {
     // Keep original if decoding fails (e.g., invalid encoding)
   }
 
-  // Repeatedly remove ../ and ..\ until none remain
-  // This prevents bypass via "..../" → "../" after single replace
-  let result = decoded;
-  let previous: string;
-  do {
-    previous = result;
-    result = result
-      .replace(/\.\.\//g, "") // Remove ../
-      .replace(/\.\.\\/g, ""); // Remove ..\
-  } while (result !== previous);
-
-  // Remove leading slashes
-  return result.replace(/^\/+/, "");
+  // Split path into segments, filter out dangerous ones, rejoin
+  // This completely removes ".." segments regardless of nesting
+  return decoded
+    .split(/[/\\]+/)
+    .filter((segment) => segment !== ".." && segment !== "." && segment !== "")
+    .join("/");
 }
 
 // =============================================================================
