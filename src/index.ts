@@ -14,7 +14,57 @@
 
 import { McpServer, ResourceTemplate } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { readFile, stat } from "node:fs/promises";
+import { resolve, extname, basename } from "node:path";
 import { z } from "zod";
+
+// =============================================================================
+// Image File Utilities
+// =============================================================================
+
+/**
+ * Allowed image extensions and their MIME types
+ */
+const IMAGE_MIME_TYPES: Record<string, string> = {
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".gif": "image/gif",
+  ".webp": "image/webp",
+  ".avif": "image/avif",
+  ".bmp": "image/bmp",
+  ".tiff": "image/tiff",
+  ".tif": "image/tiff",
+  ".ico": "image/x-icon",
+  ".svg": "image/svg+xml",
+  ".heic": "image/heic",
+  ".heif": "image/heif",
+};
+
+/**
+ * Get MIME type from file extension
+ */
+function getMimeTypeFromPath(filePath: string): string | null {
+  const ext = extname(filePath).toLowerCase();
+  return IMAGE_MIME_TYPES[ext] ?? null;
+}
+
+/**
+ * Check if file path is a valid image file
+ */
+function isAllowedImagePath(filePath: string): { allowed: boolean; reason?: string } {
+  const ext = extname(filePath).toLowerCase();
+
+  if (!ext) {
+    return { allowed: false, reason: "File has no extension" };
+  }
+
+  if (!IMAGE_MIME_TYPES[ext]) {
+    return { allowed: false, reason: `Extension '${ext}' is not a supported image format` };
+  }
+
+  return { allowed: true };
+}
 
 // =============================================================================
 // Configuration
@@ -388,13 +438,14 @@ interface DeleteResponse {
 
 const UploadImageArgsSchema = z
   .object({
+    file_path: z.string().optional(),
     url: z.url("Invalid URL format").optional(),
     data: z.string().optional(),
     mimeType: z.string().optional(),
     target_path: z.string().optional(),
   })
-  .refine((d) => d.url ?? d.data, {
-    message: "Either url or data is required",
+  .refine((d) => d.file_path ?? d.url ?? d.data, {
+    message: "One of file_path, url, or data is required",
   })
   .refine((d) => !d.data || d.mimeType, {
     message: "mimeType is required when using data",
@@ -436,6 +487,7 @@ const GetCdnUrlArgsSchema = z.object({
 // =============================================================================
 
 async function handleUploadImage(args: {
+  file_path?: string;
   url?: string;
   data?: string;
   mimeType?: string;
@@ -447,7 +499,65 @@ async function handleUploadImage(args: {
   let imageBlob: Blob;
   let filename: string;
 
-  if (args.data) {
+  if (args.file_path) {
+    // Handle local file upload
+    const pathCheck = isAllowedImagePath(args.file_path);
+    if (!pathCheck.allowed) {
+      return JSON.stringify({
+        error: {
+          code: "INVALID_FILE_TYPE",
+          message: pathCheck.reason ?? "File type not allowed",
+        },
+      });
+    }
+
+    // Resolve to absolute path
+    const absolutePath = resolve(args.file_path);
+
+    // Check file exists and get size
+    let fileStats;
+    try {
+      fileStats = await stat(absolutePath);
+    } catch {
+      return JSON.stringify({
+        error: {
+          code: "FILE_NOT_FOUND",
+          message: `File not found: ${args.file_path}`,
+        },
+      });
+    }
+
+    if (!fileStats.isFile()) {
+      return JSON.stringify({
+        error: {
+          code: "NOT_A_FILE",
+          message: `Path is not a file: ${args.file_path}`,
+        },
+      });
+    }
+
+    // Check file size before reading
+    if (fileStats.size > MAX_IMAGE_SIZE) {
+      return JSON.stringify({
+        error: {
+          code: "IMAGE_TOO_LARGE",
+          message: `Image size (${(fileStats.size / (1024 * 1024)).toFixed(2)} MB) exceeds 5 MB limit`,
+        },
+      });
+    }
+
+    // Read file as binary
+    const fileBuffer = await readFile(absolutePath);
+    const mimeType = getMimeTypeFromPath(absolutePath) ?? "application/octet-stream";
+    imageBlob = new Blob([fileBuffer], { type: mimeType });
+
+    // Determine filename from target_path or original file name
+    if (sanitizedFilepath) {
+      filename = sanitizedFilepath.split("/").pop() ?? basename(absolutePath);
+    } else {
+      filename = basename(absolutePath);
+    }
+  } else if (args.data) {
     // Handle base64 data upload
     try {
       const binaryData = Buffer.from(args.data, "base64");
@@ -531,7 +641,7 @@ async function handleUploadImage(args: {
     return JSON.stringify({
       error: {
         code: "MISSING_INPUT",
-        message: "Either url or data is required",
+        message: "One of file_path, url, or data is required",
       },
     });
   }
@@ -819,7 +929,8 @@ async function main() {
     "upload_image",
     {
       description:
-        "Upload an image to img-src.io from URL or base64 data. Supports JPEG, PNG, WebP, GIF, AVIF, HEIC, and more. " +
+        "Upload an image to img-src.io from a local file path, URL, or base64 data. " +
+        "Supports JPEG, PNG, WebP, GIF, AVIF, HEIC, and more. " +
         "Images are automatically deduplicated by content hash. " +
         "Returns the image metadata including CDN URLs for different formats.",
       inputSchema: UploadImageArgsSchema,

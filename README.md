@@ -54,19 +54,20 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 
 ### upload_image
 
-Upload an image from a local file or URL to your img-src.io account.
+Upload an image from a local file, URL, or base64 data to your img-src.io account.
 
 ```
 Upload ~/Photos/sunset.jpg to img-src as photos/vacation/sunset.jpg
 ```
 
 **Parameters:**
+- `file_path` (optional): Local file path to upload (recommended for large files)
 - `url` (optional): URL of the image to upload
-- `data` (optional): Base64-encoded image data (for local file uploads)
+- `data` (optional): Base64-encoded image data
 - `mimeType` (optional): MIME type of the image (required when using `data`)
 - `target_path` (optional): Target path for organizing the image
 
-Note: Either `url` or `data` must be provided.
+Note: One of `file_path`, `url`, or `data` must be provided.
 
 ### list_images
 

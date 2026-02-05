@@ -448,13 +448,14 @@ describe("MCP Server", () => {
   describe("Zod Schema Validation", () => {
     const UploadImageArgsSchema = z
       .object({
+        file_path: z.string().optional(),
         url: z.url("Invalid URL format").optional(),
         data: z.string().optional(),
         mimeType: z.string().optional(),
         target_path: z.string().optional(),
       })
-      .refine((d) => d.url ?? d.data, {
-        message: "Either url or data is required",
+      .refine((d) => d.file_path ?? d.url ?? d.data, {
+        message: "One of file_path, url, or data is required",
       })
       .refine((d) => !d.data || d.mimeType, {
         message: "mimeType is required when using data",
@@ -528,6 +529,21 @@ describe("MCP Server", () => {
       it("should allow missing target_path", () => {
         const result = UploadImageArgsSchema.safeParse({
           url: "https://example.com/image.jpg",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept valid file_path input", () => {
+        const result = UploadImageArgsSchema.safeParse({
+          file_path: "/Users/test/photos/image.jpg",
+          target_path: "photos/image.jpg",
+        });
+        expect(result.success).toBe(true);
+      });
+
+      it("should accept file_path without target_path", () => {
+        const result = UploadImageArgsSchema.safeParse({
+          file_path: "/Users/test/photos/image.png",
         });
         expect(result.success).toBe(true);
       });
