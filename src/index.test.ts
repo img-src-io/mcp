@@ -62,10 +62,17 @@ function sanitizePath(path: string): string {
     // Keep original if decoding fails
   }
 
-  return decoded
-    .replace(/\.\.\//g, "")
-    .replace(/\.\.\\/g, "")
-    .replace(/^\/+/, "");
+  // Repeatedly remove ../ and ..\ until none remain
+  let result = decoded;
+  let previous: string;
+  do {
+    previous = result;
+    result = result
+      .replace(/\.\.\//g, "")
+      .replace(/\.\.\\/g, "");
+  } while (result !== previous);
+
+  return result.replace(/^\/+/, "");
 }
 
 function formatBytes(bytes: number): string {
@@ -165,6 +172,15 @@ describe("MCP Server", () => {
     it("should handle normal paths", () => {
       expect(sanitizePath("photos/vacation/beach.jpg")).toBe("photos/vacation/beach.jpg");
       expect(sanitizePath("image.png")).toBe("image.png");
+    });
+
+    it("should handle nested path traversal bypass attempts", () => {
+      // "..../" becomes "../" after single replace - must be handled iteratively
+      expect(sanitizePath("....//secret")).toBe("secret");
+      expect(sanitizePath("....\\\\secret")).toBe("secret");
+      expect(sanitizePath("foo/....//bar")).toBe("foo/bar");
+      // Multiple nested patterns
+      expect(sanitizePath("......///secret")).toBe("secret");
     });
 
     it("should handle URL-encoded path traversal", () => {

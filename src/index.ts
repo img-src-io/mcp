@@ -157,10 +157,19 @@ function sanitizePath(path: string): string {
     // Keep original if decoding fails (e.g., invalid encoding)
   }
 
-  return decoded
-    .replace(/\.\.\//g, "") // Remove ../
-    .replace(/\.\.\\/g, "") // Remove ..\
-    .replace(/^\/+/, ""); // Remove leading slashes
+  // Repeatedly remove ../ and ..\ until none remain
+  // This prevents bypass via "..../" → "../" after single replace
+  let result = decoded;
+  let previous: string;
+  do {
+    previous = result;
+    result = result
+      .replace(/\.\.\//g, "") // Remove ../
+      .replace(/\.\.\\/g, ""); // Remove ..\
+  } while (result !== previous);
+
+  // Remove leading slashes
+  return result.replace(/^\/+/, "");
 }
 
 // =============================================================================
