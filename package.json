@@ -1,6 +1,6 @@
 {
   "name": "@img-src/mcp-server",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "MCP server for img-src.io image hosting API",
   "type": "module",
   "main": "dist/index.js",
