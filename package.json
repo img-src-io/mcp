@@ -1,0 +1,54 @@
+{
+  "name": "@img-src/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for img-src.io image hosting API",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "img-src-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "img-src",
+    "image-hosting",
+    "ai-tools"
+  ],
+  "author": "img-src.io",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/img-src-io/mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/img-src-io/mcp/issues"
+  },
+  "homepage": "https://github.com/img-src-io/mcp#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "@types/node": "^22.19.8",
+    "eslint": "^9.39.2",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
