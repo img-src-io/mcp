@@ -391,7 +391,7 @@ const UploadImageArgsSchema = z
     url: z.url("Invalid URL format").optional(),
     data: z.string().optional(),
     mimeType: z.string().optional(),
-    filepath: z.string().optional(),
+    target_path: z.string().optional(),
   })
   .refine((d) => d.url ?? d.data, {
     message: "Either url or data is required",
@@ -439,10 +439,10 @@ async function handleUploadImage(args: {
   url?: string;
   data?: string;
   mimeType?: string;
-  filepath?: string;
+  target_path?: string;
 }): Promise<string> {
-  // Sanitize filepath if provided
-  const sanitizedFilepath = args.filepath ? sanitizePath(args.filepath) : undefined;
+  // Sanitize target_path if provided
+  const sanitizedFilepath = args.target_path ? sanitizePath(args.target_path) : undefined;
 
   let imageBlob: Blob;
   let filename: string;
@@ -461,7 +461,7 @@ async function handleUploadImage(args: {
       });
     }
 
-    // Determine filename from filepath or generate one
+    // Determine filename from target_path or generate one
     if (sanitizedFilepath) {
       filename = sanitizedFilepath.split("/").pop() ?? "image";
     } else {
@@ -520,7 +520,7 @@ async function handleUploadImage(args: {
 
     imageBlob = await imageResponse.blob();
 
-    // Determine filename from URL or filepath
+    // Determine filename from URL or target_path
     if (sanitizedFilepath) {
       filename = sanitizedFilepath.split("/").pop() ?? "image";
     } else {
@@ -550,7 +550,7 @@ async function handleUploadImage(args: {
   const formData = new FormData();
   formData.append("file", imageBlob, filename);
   if (sanitizedFilepath) {
-    formData.append("filepath", sanitizedFilepath);
+    formData.append("target_path", sanitizedFilepath);
   }
 
   const result = await apiRequest<UploadResponse>("POST", "/api/v1/images", formData, true);

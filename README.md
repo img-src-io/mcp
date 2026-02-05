@@ -64,7 +64,7 @@ Upload ~/Photos/sunset.jpg to img-src as photos/vacation/sunset.jpg
 - `url` (optional): URL of the image to upload
 - `data` (optional): Base64-encoded image data (for local file uploads)
 - `mimeType` (optional): MIME type of the image (required when using `data`)
-- `filepath` (optional): Path to store the image
+- `target_path` (optional): Target path for organizing the image
 
 Note: Either `url` or `data` must be provided.
 

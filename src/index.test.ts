@@ -451,7 +451,7 @@ describe("MCP Server", () => {
         url: z.url("Invalid URL format").optional(),
         data: z.string().optional(),
         mimeType: z.string().optional(),
-        filepath: z.string().optional(),
+        target_path: z.string().optional(),
       })
       .refine((d) => d.url ?? d.data, {
         message: "Either url or data is required",
@@ -490,7 +490,7 @@ describe("MCP Server", () => {
       it("should accept valid URL input", () => {
         const result = UploadImageArgsSchema.safeParse({
           url: "https://example.com/image.jpg",
-          filepath: "photos/image.jpg",
+          target_path: "photos/image.jpg",
         });
         expect(result.success).toBe(true);
       });
@@ -499,7 +499,7 @@ describe("MCP Server", () => {
         const result = UploadImageArgsSchema.safeParse({
           data: "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
           mimeType: "image/png",
-          filepath: "photos/pixel.png",
+          target_path: "photos/pixel.png",
         });
         expect(result.success).toBe(true);
       });
@@ -513,7 +513,7 @@ describe("MCP Server", () => {
 
       it("should reject missing url and data", () => {
         const result = UploadImageArgsSchema.safeParse({
-          filepath: "photos/image.jpg",
+          target_path: "photos/image.jpg",
         });
         expect(result.success).toBe(false);
       });
@@ -525,7 +525,7 @@ describe("MCP Server", () => {
         expect(result.success).toBe(false);
       });
 
-      it("should allow missing filepath", () => {
+      it("should allow missing target_path", () => {
         const result = UploadImageArgsSchema.safeParse({
           url: "https://example.com/image.jpg",
         });
