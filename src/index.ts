@@ -438,11 +438,26 @@ interface DeleteResponse {
 
 const UploadImageArgsSchema = z
   .object({
-    file_path: z.string().optional(),
-    url: z.url("Invalid URL format").optional(),
-    data: z.string().optional(),
-    mimeType: z.string().optional(),
-    target_path: z.string().optional(),
+    file_path: z
+      .string()
+      .optional()
+      .describe("PREFERRED: Absolute path to local image file (e.g., /Users/name/photo.png). Use this instead of base64 data."),
+    url: z
+      .url("Invalid URL format")
+      .optional()
+      .describe("URL of image to download and upload (for web images)"),
+    data: z
+      .string()
+      .optional()
+      .describe("Base64-encoded image data. AVOID: causes context length issues. Use file_path instead."),
+    mimeType: z
+      .string()
+      .optional()
+      .describe("MIME type (required only when using data, e.g., image/png)"),
+    target_path: z
+      .string()
+      .optional()
+      .describe("Optional: Custom path/filename for the uploaded image"),
   })
   .refine((d) => d.file_path ?? d.url ?? d.data, {
     message: "One of file_path, url, or data is required",
@@ -929,10 +944,11 @@ async function main() {
     "upload_image",
     {
       description:
-        "Upload an image to img-src.io from a local file path, URL, or base64 data. " +
-        "Supports JPEG, PNG, WebP, GIF, AVIF, HEIC, and more. " +
-        "Images are automatically deduplicated by content hash. " +
-        "Returns the image metadata including CDN URLs for different formats.",
+        "Upload an image to img-src.io. " +
+        "IMPORTANT: Always prefer 'file_path' (absolute path like /Users/name/image.png) over base64 'data' to avoid context length limits. " +
+        "Use 'url' for web images. Only use 'data' as last resort for small images. " +
+        "Supports JPEG, PNG, WebP, GIF, AVIF, HEIC, and more. Max 5MB. " +
+        "Returns CDN URLs for the uploaded image.",
       inputSchema: UploadImageArgsSchema,
     },
     async (args) => wrapToolResult(await handleUploadImage(args))
