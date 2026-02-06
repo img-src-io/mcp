@@ -39,6 +39,7 @@ const IMAGE_MIME_TYPES: Record<string, string> = {
   ".svg": "image/svg+xml",
   ".heic": "image/heic",
   ".heif": "image/heif",
+  ".jxl": "image/jxl",
 };
 
 /**
@@ -568,7 +569,7 @@ const GetCdnUrlArgsSchema = z.object({
     .optional()
     .describe("Image quality 1-100 (default: 80)"),
   format: z
-    .enum(["webp", "avif", "jpeg", "png"])
+    .enum(["webp", "avif", "jpeg", "png", "jxl"])
     .optional()
     .describe("Output format (default: webp)"),
 });

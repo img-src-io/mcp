@@ -539,7 +539,7 @@ describe("MCP Server", () => {
       height: z.number().int().positive().optional(),
       fit: z.enum(["cover", "contain", "fill", "scale-down"]).optional(),
       quality: z.number().int().min(1).max(100).optional(),
-      format: z.enum(["webp", "avif", "jpeg", "png"]).optional(),
+      format: z.enum(["webp", "avif", "jpeg", "png", "jxl"]).optional(),
     });
 
     describe("UploadImageArgsSchema", () => {
