@@ -120,6 +120,18 @@ function isAllowedUrl(urlString: string): { allowed: boolean; reason?: string } 
     return { allowed: false, reason: "Cloud metadata endpoints are not allowed" };
   }
 
+  // Block IPv6 addresses (could map to internal IPs via ::ffff: prefix)
+  // e.g., [::ffff:127.0.0.1], [::ffff:169.254.169.254]
+  if (hostname.includes(":")) {
+    return { allowed: false, reason: "IPv6 addresses are not allowed" };
+  }
+
+  // Block non-standard IP representations that could bypass IPv4 checks
+  // Octal: 0177.0.0.1 (leading zeros), Hex: 0x7f.0.0.1, Single decimal: 2130706433
+  if (/^0\d+\./.test(hostname) || /^0x[0-9a-f]/i.test(hostname) || /^\d+$/.test(hostname)) {
+    return { allowed: false, reason: "Numeric IP representations are not allowed" };
+  }
+
   // Block private IP ranges (RFC 1918)
   const ipv4Match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
   if (ipv4Match) {
@@ -679,7 +691,50 @@ async function handleUploadImage(args: {
 
     let imageResponse: Response;
     try {
-      imageResponse = await fetch(args.url, { signal: controller.signal });
+      imageResponse = await fetch(args.url, {
+        signal: controller.signal,
+        redirect: "manual",
+      });
+
+      // Handle redirects safely - validate redirect target against SSRF
+      if (imageResponse.status >= 300 && imageResponse.status < 400) {
+        const location = imageResponse.headers.get("location");
+        if (!location) {
+          return JSON.stringify({
+            error: {
+              code: "INVALID_REDIRECT",
+              message: "Redirect response missing location header",
+            },
+          });
+        }
+
+        const absoluteUrl = new URL(location, args.url).href;
+        const redirectCheck = isAllowedUrl(absoluteUrl);
+        if (!redirectCheck.allowed) {
+          return JSON.stringify({
+            error: {
+              code: "FORBIDDEN_REDIRECT",
+              message: `Redirect target not allowed: ${redirectCheck.reason ?? "Unknown reason"}`,
+            },
+          });
+        }
+
+        // Follow one redirect only
+        imageResponse = await fetch(absoluteUrl, {
+          signal: controller.signal,
+          redirect: "manual",
+        });
+
+        if (imageResponse.status >= 300 && imageResponse.status < 400) {
+          return JSON.stringify({
+            error: {
+              code: "TOO_MANY_REDIRECTS",
+              message: "Too many redirects while fetching image",
+            },
+          });
+        }
+      }
+
       if (!imageResponse.ok) {
         return JSON.stringify({
           error: {
@@ -706,6 +761,20 @@ async function handleUploadImage(args: {
       });
     } finally {
       clearTimeout(timeoutId);
+    }
+
+    // Check Content-Length before loading full response body into memory
+    const contentLength = imageResponse.headers.get("content-length");
+    if (contentLength) {
+      const size = parseInt(contentLength, 10);
+      if (!isNaN(size) && size > MAX_IMAGE_SIZE) {
+        return JSON.stringify({
+          error: {
+            code: "IMAGE_TOO_LARGE",
+            message: `Image size (${(size / (1024 * 1024)).toFixed(2)} MB) exceeds 5 MB limit`,
+          },
+        });
+      }
     }
 
     imageBlob = await imageResponse.blob();

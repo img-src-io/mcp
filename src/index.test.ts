@@ -33,6 +33,16 @@ function isAllowedUrl(urlString: string): { allowed: boolean; reason?: string } 
     return { allowed: false, reason: "Cloud metadata endpoints are not allowed" };
   }
 
+  // Block IPv6 addresses (could map to internal IPs via ::ffff: prefix)
+  if (hostname.includes(":")) {
+    return { allowed: false, reason: "IPv6 addresses are not allowed" };
+  }
+
+  // Block non-standard IP representations that could bypass IPv4 checks
+  if (/^0\d+\./.test(hostname) || /^0x[0-9a-f]/i.test(hostname) || /^\d+$/.test(hostname)) {
+    return { allowed: false, reason: "Numeric IP representations are not allowed" };
+  }
+
   const ipv4Match = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(hostname);
   if (ipv4Match) {
     const [, a, b] = ipv4Match.map(Number);
@@ -139,6 +149,38 @@ describe("MCP Server", () => {
       expect(isAllowedUrl("not-a-url").allowed).toBe(false);
       expect(isAllowedUrl("").allowed).toBe(false);
       expect(isAllowedUrl("://missing-protocol").allowed).toBe(false);
+    });
+
+    it("should block IPv6 addresses (SSRF via ::ffff: mapping)", () => {
+      expect(isAllowedUrl("http://[::ffff:127.0.0.1]/secret").allowed).toBe(false);
+      expect(isAllowedUrl("http://[::ffff:169.254.169.254]/metadata").allowed).toBe(false);
+      expect(isAllowedUrl("http://[::ffff:10.0.0.1]/internal").allowed).toBe(false);
+      expect(isAllowedUrl("http://[::ffff:192.168.1.1]/admin").allowed).toBe(false);
+    });
+
+    it("should block octal IP representations", () => {
+      // 0177.0.0.1 = 127.0.0.1 in octal
+      expect(isAllowedUrl("http://0177.0.0.1/").allowed).toBe(false);
+      expect(isAllowedUrl("http://00.0.0.0/").allowed).toBe(false);
+      expect(isAllowedUrl("http://012.0.0.1/").allowed).toBe(false);
+    });
+
+    it("should block hex IP representations", () => {
+      // 0x7f.0.0.1 = 127.0.0.1 in hex
+      expect(isAllowedUrl("http://0x7f.0.0.1/").allowed).toBe(false);
+      expect(isAllowedUrl("http://0x7f000001/").allowed).toBe(false);
+      expect(isAllowedUrl("http://0xA9FEA9FE/").allowed).toBe(false); // 169.254.169.254
+    });
+
+    it("should block single decimal IP representations", () => {
+      // 2130706433 = 127.0.0.1 as single decimal
+      expect(isAllowedUrl("http://2130706433/").allowed).toBe(false);
+    });
+
+    it("should still allow valid domain names starting with numbers", () => {
+      // Domains with numbers are fine as long as they have non-numeric parts
+      expect(isAllowedUrl("https://123.example.com/image.jpg").allowed).toBe(true);
+      expect(isAllowedUrl("https://1password.com/image.jpg").allowed).toBe(true);
     });
 
     it("should provide meaningful error reasons", () => {
