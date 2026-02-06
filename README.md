@@ -50,6 +50,168 @@ Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/
 }
 ```
 
+## Usage with Claude Code
+
+Add to your project's `.mcp.json` (project-scoped) or `~/.claude/mcp.json` (global):
+
+```json
+{
+  "mcpServers": {
+    "img-src": {
+      "command": "npx",
+      "args": ["@img-src/mcp-server"],
+      "env": {
+        "IMG_SRC_API_KEY": "imgsrc_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+Or add it via the CLI:
+
+```bash
+claude mcp add img-src -- npx @img-src/mcp-server
+```
+
+Then set the API key in your environment or `.env` file:
+
+```bash
+export IMG_SRC_API_KEY=imgsrc_your_api_key_here
+```
+
+## Usage with Cursor
+
+1. Open Cursor Settings (`Cmd+,` on macOS / `Ctrl+,` on Windows/Linux)
+2. Navigate to **Features > MCP Servers**
+3. Click **"Add new MCP server"**
+4. Enter the following configuration:
+   - **Name**: `img-src`
+   - **Type**: `command`
+   - **Command**: `npx @img-src/mcp-server`
+
+5. Add the environment variable `IMG_SRC_API_KEY` with your API key.
+
+Alternatively, create or edit `.cursor/mcp.json` in your project root:
+
+```json
+{
+  "mcpServers": {
+    "img-src": {
+      "command": "npx",
+      "args": ["@img-src/mcp-server"],
+      "env": {
+        "IMG_SRC_API_KEY": "imgsrc_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+## Usage with VS Code (GitHub Copilot)
+
+Create `.vscode/mcp.json` in your workspace:
+
+```json
+{
+  "servers": {
+    "img-src": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@img-src/mcp-server"],
+      "env": {
+        "IMG_SRC_API_KEY": "imgsrc_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+Or add via CLI:
+
+```bash
+code --add-mcp '{"name":"img-src","command":"npx","args":["@img-src/mcp-server"],"env":{"IMG_SRC_API_KEY":"imgsrc_your_api_key_here"}}'
+```
+
+> **Note:** VS Code uses `"servers"` (not `"mcpServers"`) and requires `"type": "stdio"`.
+
+## Usage with Windsurf
+
+Add to `~/.codeium/windsurf/mcp_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "img-src": {
+      "command": "npx",
+      "args": ["@img-src/mcp-server"],
+      "env": {
+        "IMG_SRC_API_KEY": "imgsrc_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+## Usage with Cline
+
+Open the Cline extension in VS Code, click the **MCP Servers** icon > **Configure MCP Servers**, then add:
+
+```json
+{
+  "mcpServers": {
+    "img-src": {
+      "command": "npx",
+      "args": ["@img-src/mcp-server"],
+      "env": {
+        "IMG_SRC_API_KEY": "imgsrc_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+## Usage with Zed
+
+Add to your Zed settings (`~/.config/zed/settings.json`):
+
+```json
+{
+  "context_servers": {
+    "img-src": {
+      "command": "npx",
+      "args": ["@img-src/mcp-server"],
+      "env": {
+        "IMG_SRC_API_KEY": "imgsrc_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
+> **Note:** Zed uses `"context_servers"` as the key, embedded within the main `settings.json`.
+
+## Usage with JetBrains IDEs
+
+In IntelliJ IDEA, WebStorm, PyCharm, or other JetBrains IDEs:
+
+1. Go to **Settings > Tools > AI Assistant > Model Context Protocol (MCP)**
+2. Click **+** (Add) and paste:
+
+```json
+{
+  "mcpServers": {
+    "img-src": {
+      "command": "npx",
+      "args": ["@img-src/mcp-server"],
+      "env": {
+        "IMG_SRC_API_KEY": "imgsrc_your_api_key_here"
+      }
+    }
+  }
+}
+```
+
 ## Available Tools
 
 ### upload_image
@@ -148,7 +310,7 @@ Generate an img-src CDN URL for john/photos/beach.jpg resized to 800x600
 - `height` (optional): Resize height
 - `fit` (optional): cover, contain, fill, scale-down
 - `quality` (optional): 1-100 (default: 80)
-- `format` (optional): webp, avif, jpeg, png
+- `format` (optional): webp, avif, jpeg, png, jxl
 
 ## Resources
 
