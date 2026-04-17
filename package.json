@@ -47,6 +47,7 @@
     "eslint": "^10.2.0",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.58.2",
+    "vite": "^8.0.8",
     "vitest": "^4.1.4"
   },
   "engines": {
@@ -55,7 +56,8 @@
   "packageManager": "pnpm@10.27.0",
   "pnpm": {
     "overrides": {
-      "minimatch@>=10.0.0 <10.2.3": ">=10.2.3"
+      "minimatch@>=10.0.0 <10.2.3": ">=10.2.3",
+      "hono": ">=4.12.14"
     }
   }
 }
